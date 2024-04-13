@@ -730,7 +730,6 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 			)
 		}
 		colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(colRecords).OnConflict(goqu.DoNothing()).ToSQL()
-		log.Println(colSqlStr)
 		if err != nil {
 			return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
 		}

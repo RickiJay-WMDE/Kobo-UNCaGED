@@ -282,21 +282,27 @@ function showLibraryInfo(resp) {
             var fieldColOpt = document.createElement('option');
             fieldColOpt.value = libInfo.subtitleFields[i];
             fieldColOpt.innerHTML = libInfo.subtitleFields[i];
-            // if (libInfo.currColSel === i) {
-            //     fieldOpt.selected = true;
-            // }
+            if (libInfo.currColSel === i) {
+                fieldOpt.selected = true;
+            }
             fieldColSel.appendChild(fieldOpt);
         }
         fieldSubSel.addEventListener('change', sendLibraryInfo);
         fieldSubSel.disabled = false;
 
-        // fieldColSel.addEventListener('change', sendLibraryInfo);
+        fieldColSel.addEventListener('change', sendLibraryInfo);
         fieldColSel.disabled = false;
     }
 }
 
 function sendLibraryInfo(ev) {
     var el = ev.target;
+    if (el.id === 'kuCollectionColumn') {
+        libInfo.currColSel = 0;
+        if (el.selectedIndex > 0) {
+            libInfo.currColSel = el.selectedIndex;
+        }
+    }
     if (el.id === 'kuSubtitleColumn') {
         libInfo.currSel = 0;
         if (el.selectedIndex > 0) {

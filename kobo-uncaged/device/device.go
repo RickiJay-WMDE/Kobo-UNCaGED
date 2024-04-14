@@ -648,9 +648,11 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	var desc, series, seriesNum, subtitle *string
 	var seriesNumFloat *float64
 	var collections []string
+	var colRecords []goqu.Record
 	for cid, m := range k.MetadataMap {
 		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
 		collections = []string{}
+		colRecords = []goqu.Record{}
 		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
 			desc = m.Meta.Comments
 		}
@@ -716,25 +718,42 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 			return false, fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
 		}
 		updateSQL.writeQuery(sqlStr)
-		var colRecords []goqu.Record
-		for _, shelf := range collections {
-			colRecords = append(
-				colRecords,
-				goqu.Record{
-					"ShelfName":    shelf,
-					"ContentId":    cid,
-					"DateModified": time.Now().UTC().Format(time.RFC3339),
-					"_IsDeleted":   "false",
-					"_IsSynced":    "false",
-				},
-			)
-		}
-		colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(colRecords).OnConflict(goqu.DoNothing()).ToSQL()
-		if err != nil {
-			return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
-		}
-		updateSQL.writeQuery(colSqlStr)
 
+		if len(collections) > 0 {
+			for _, shelf := range collections {
+				colRecords = append(
+					colRecords,
+					goqu.Record{
+						"ShelfName":    shelf,
+						"ContentId":    cid,
+						"DateModified": time.Now().UTC().Format(time.RFC3339),
+						"_IsDeleted":   "false",
+						"_IsSynced":    "false",
+					},
+				)
+			}
+
+			colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(colRecords).OnConflict(goqu.DoNothing()).ToSQL()
+			if err != nil {
+				return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+			} else {
+				log.Println(colSqlStr)
+			}
+			updateSQL.writeQuery(colSqlStr)
+
+			// cleanColSqlStr, _, err := dialect.Delete("ShelfContent").Where(
+			// 	goqu.And(
+			// 		goqu.C("ShelfName").NotIn(collections),
+			// 		goqu.C("ContentId").Eq(cid),
+			// 	),
+			// ).ToSQL()
+			// if err != nil {
+			// 	return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+			// } else {
+			// 	log.Println(cleanColSqlStr)
+			// }
+			// updateSQL.writeQuery(cleanColSqlStr)
+		}
 	}
 	// Note, the SeriesID stuff was implemented in FW 4.20.14601
 	if kobo.VersionCompare(string(k.fw), "4.20.14601") >= 0 {
@@ -750,6 +769,17 @@ FROM (
 WHERE content.Series = c.Series;`)
 		updateSQL.writeQuery(`UPDATE content SET SeriesID=Series WHERE ContentType = 6 AND (Series IS NOT NULL OR Series <> '') AND (SeriesID IS NULL OR SeriesID <> '');`)
 	}
+
+	// cleanColSqlStr, _, err := dialect.Delete("ShelfContent").Where(
+	// 	goqu.C("ShelfName").NotIn(goqu.From("Shelf").Select("Name")),
+	// ).ToSQL()
+	// if err != nil {
+	// 	return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+	// } else {
+	// 	log.Println(cleanColSqlStr)
+	// }
+	// updateSQL.writeQuery(cleanColSqlStr)
+
 	return true, nil
 }
 

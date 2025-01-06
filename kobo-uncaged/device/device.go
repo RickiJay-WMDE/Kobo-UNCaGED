@@ -651,8 +651,8 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	var colRecords []goqu.Record
 	for cid, m := range k.MetadataMap {
 		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
-		collections = []string{}
-		colRecords = []goqu.Record{}
+		collections = make([]string, 0, 1000)
+		colRecords = make([]goqu.Record, 0, 1000)
 		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
 			desc = m.Meta.Comments
 		}

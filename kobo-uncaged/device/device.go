@@ -710,8 +710,12 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 				}
 			}
 		}
-		ds := dialect.Update("content").Set(goqu.Record{
-			"Description": desc, "Series": series, "SeriesNumber": seriesNum, "SeriesNumberFloat": seriesNumFloat, "Subtitle": subtitle,
+		ds := dialect.Update("content").Set(ContentRecord{
+			Description:       desc,
+			Series:            series,
+			SeriesNumber:      seriesNum,
+			SeriesNumberFloat: seriesNumFloat,
+			Subtitle:          subtitle,
 		}).Where(goqu.Ex{"ContentID": cid})
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {

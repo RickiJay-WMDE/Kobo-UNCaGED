@@ -666,49 +666,8 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 			seriesNumFloat = m.Meta.SeriesIndex
 		}
 		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
-			if field.CollectionColumn != "" {
-				if field.CollectionColumn == "languages" {
-					collections = m.Meta.Languages
-				} else if field.CollectionColumn == "tags" {
-					collections = m.Meta.Tags
-				} else if field.CollectionColumn == "publisher" {
-					collections = []string{*m.Meta.Publisher}
-				} else if field.CollectionColumn == "rating" {
-					collections = []string{m.Meta.RatingString()}
-				} else if cc, exists := m.Meta.UserCategories[field.CollectionColumn]; exists {
-					log.Println("User Categories")
-					log.Println(cc)
-				} else if cc, exists := m.Meta.UserMetadata[field.CollectionColumn]; exists {
-					if t, ok := cc.Value.([]string); ok {
-						collections = t
-					} else if t, ok := cc.Value.(*[]string); ok {
-						collections = *t
-					} else {
-						collections = strings.Split(cc.ContextualString(), ", ")
-					}
-				}
-			}
-			if field.SubtitleColumn != "" {
-				col := field.SubtitleColumn
-				md := m.Meta
-				st := ""
-				if col == "languages" {
-					st = md.LangString()
-				} else if col == "tags" {
-					st = md.TagString()
-				} else if col == "publisher" {
-					st = md.PubString()
-				} else if col == "rating" {
-					st = md.RatingString()
-				} else if strings.HasPrefix(col, "#") {
-					if cc, exists := md.UserMetadata[col]; exists {
-						st = cc.ContextualString()
-					}
-				}
-				if st != "" {
-					subtitle = &st
-				}
-			}
+			collections = getCollectionsValue(field.CollectionColumn, m.Meta)
+			subtitle = getSubtitleValue(field.SubtitleColumn, m.Meta)
 		}
 		ds := dialect.Update("content").Set(ContentRecord{
 			Description:       desc,
@@ -785,6 +744,56 @@ WHERE content.Series = c.Series;`)
 	// updateSQL.writeQuery(cleanColSqlStr)
 
 	return true, nil
+}
+
+func getCollectionsValue(col string, md *uc.CalibreBookMeta) []string {
+	var collections []string = make([]string, 0, 1000)
+	if col != "" {
+		if col == "languages" {
+			collections = md.Languages
+		} else if col == "tags" {
+			collections = md.Tags
+		} else if col == "publisher" {
+			collections = []string{*md.Publisher}
+		} else if col == "rating" {
+			collections = []string{md.RatingString()}
+		} else if cc, exists := md.UserCategories[col]; exists {
+			log.Println("User Categories")
+			log.Println(cc)
+		} else if cc, exists := md.UserMetadata[col]; exists {
+			if t, ok := cc.Value.([]string); ok {
+				collections = t
+			} else if t, ok := cc.Value.(*[]string); ok {
+				collections = *t
+			} else {
+				collections = strings.Split(cc.ContextualString(), ", ")
+			}
+		}
+	}
+	return collections
+}
+
+func getSubtitleValue(col string, md *uc.CalibreBookMeta) *string {
+	if col != "" {
+		st := ""
+		if col == "languages" {
+			st = md.LangString()
+		} else if col == "tags" {
+			st = md.TagString()
+		} else if col == "publisher" {
+			st = md.PubString()
+		} else if col == "rating" {
+			st = md.RatingString()
+		} else if strings.HasPrefix(col, "#") {
+			if cc, exists := md.UserMetadata[col]; exists {
+				st = cc.ContextualString()
+			}
+		}
+		if st != "" {
+			return &st
+		}
+	}
+	return nil
 }
 
 // Close the kobo object when we're finished with it

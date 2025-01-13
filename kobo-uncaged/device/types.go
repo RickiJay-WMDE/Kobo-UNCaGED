@@ -73,9 +73,9 @@ type webConfig struct {
 }
 
 type webLibOpts struct {
-	CurrSel        int      `json:"currSel"`
-	CurrColSel     int      `json:"currColSel"`
-	SubtitleFields []string `json:"subtitleFields"`
+	CurrSubtitleSel   int      `json:"currSel"`
+	CurrCollectionSel int      `json:"currColSel"`
+	SubtitleFields    []string `json:"subtitleFields"`
 }
 
 // WebMsg is used to send messages to the web client

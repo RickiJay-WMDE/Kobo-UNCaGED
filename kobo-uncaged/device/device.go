@@ -648,11 +648,11 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	var desc, series, seriesNum, subtitle *string
 	var seriesNumFloat *float64
 	var collections []string
-	var colRecords []goqu.Record
+	var collectionRecords []ShelfContentRecord
 	for cid, m := range k.MetadataMap {
 		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
-		collections = make([]string, 0, 1000)
-		colRecords = make([]goqu.Record, 0, 1000)
+		collections = make([]string, 0)
+		collectionRecords = make([]ShelfContentRecord, 0)
 		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
 			desc = m.Meta.Comments
 		}
@@ -684,19 +684,19 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 
 		if len(collections) > 0 {
 			for _, shelf := range collections {
-				colRecords = append(
-					colRecords,
-					goqu.Record{
-						"ShelfName":    shelf,
-						"ContentId":    cid,
-						"DateModified": time.Now().UTC().Format(time.RFC3339),
-						"_IsDeleted":   "false",
-						"_IsSynced":    "false",
+				collectionRecords = append(
+					collectionRecords,
+					ShelfContentRecord{
+						ShelfName:    shelf,
+						ContentId:    cid,
+						DateModified: time.Now().UTC().Format(time.RFC3339),
+						IsDeleted:    "false",
+						IsSynced:     "false",
 					},
 				)
 			}
 
-			colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(colRecords).OnConflict(goqu.DoNothing()).ToSQL()
+			colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(collectionRecords).OnConflict(goqu.DoNothing()).ToSQL()
 			if err != nil {
 				return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
 			} else {

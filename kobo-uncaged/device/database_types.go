@@ -26,3 +26,11 @@ type ContentRecord struct {
 	SeriesNumberFloat *float64 `db:"SeriesNumberFloat"`
 	Subtitle          *string  `db:"Subtitle"`
 }
+
+type ShelfContentRecord struct {
+	ShelfName    string `db:"ShelfName"`
+	ContentId    string `db:"ContentId"`
+	DateModified string `db:"DateModified"`
+	IsDeleted    string `db:"_IsDeleted"`
+	IsSynced     string `db:"_IsSynced"`
+}

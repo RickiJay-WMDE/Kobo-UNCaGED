@@ -645,43 +645,21 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	}
 	defer updateSQL.close()
 	dialect := goqu.Dialect("sqlite3")
-	var desc, series, seriesNum, subtitle *string
-	var seriesNumFloat *float64
 	var collections []string
 	var collectionRecords []ShelfContentRecord
 	for cid, m := range k.MetadataMap {
-		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
 		collections = make([]string, 0)
 		collectionRecords = make([]ShelfContentRecord, 0)
-		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
-			desc = m.Meta.Comments
-		}
-		if m.Meta.Series != nil && *m.Meta.Series != "" {
-			// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
-			series = m.Meta.Series
-		}
-		if m.Meta.SeriesIndex != nil && *m.Meta.SeriesIndex != 0.0 {
-			sn := strconv.FormatFloat(*m.Meta.SeriesIndex, 'f', -1, 64)
-			seriesNum = &sn
-			seriesNumFloat = m.Meta.SeriesIndex
-		}
-		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
-			collections = getCollectionsValue(field.CollectionColumn, m.Meta)
-			subtitle = getSubtitleValue(field.SubtitleColumn, m.Meta)
-		}
-		ds := dialect.Update("content").Set(ContentRecord{
-			Description:       desc,
-			Series:            series,
-			SeriesNumber:      seriesNum,
-			SeriesNumberFloat: seriesNumFloat,
-			Subtitle:          subtitle,
-		}).Where(goqu.Ex{"ContentID": cid})
+		ds := getContentSQL(m, k, dialect, cid)
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {
 			return false, fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
 		}
 		updateSQL.writeQuery(sqlStr)
 
+		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
+			collections = getCollectionsValue(field.CollectionColumn, m.Meta)
+		}
 		if len(collections) > 0 {
 			for _, shelf := range collections {
 				collectionRecords = append(
@@ -744,6 +722,35 @@ WHERE content.Series = c.Series;`)
 	// updateSQL.writeQuery(cleanColSqlStr)
 
 	return true, nil
+}
+
+func getContentSQL(m BookMeta, k *Kobo, dialect goqu.DialectWrapper, cid string) *goqu.UpdateDataset {
+	var desc, series, seriesNum, subtitle *string
+	var seriesNumFloat *float64
+	desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
+	if m.Meta.Comments != nil && *m.Meta.Comments != "" {
+		desc = m.Meta.Comments
+	}
+	if m.Meta.Series != nil && *m.Meta.Series != "" {
+		// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
+		series = m.Meta.Series
+	}
+	if m.Meta.SeriesIndex != nil && *m.Meta.SeriesIndex != 0.0 {
+		sn := strconv.FormatFloat(*m.Meta.SeriesIndex, 'f', -1, 64)
+		seriesNum = &sn
+		seriesNumFloat = m.Meta.SeriesIndex
+	}
+	if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
+		subtitle = getSubtitleValue(field.SubtitleColumn, m.Meta)
+	}
+	ds := dialect.Update("content").Set(ContentRecord{
+		Description:       desc,
+		Series:            series,
+		SeriesNumber:      seriesNum,
+		SeriesNumberFloat: seriesNumFloat,
+		Subtitle:          subtitle,
+	}).Where(goqu.Ex{"ContentID": cid})
+	return ds
 }
 
 func getCollectionsValue(col string, md *uc.CalibreBookMeta) []string {

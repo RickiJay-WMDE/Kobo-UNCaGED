@@ -645,11 +645,7 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	}
 	defer updateSQL.close()
 	dialect := goqu.Dialect("sqlite3")
-	var collections []string
-	var collectionRecords []ShelfContentRecord
 	for cid, m := range k.MetadataMap {
-		collections = make([]string, 0)
-		collectionRecords = make([]ShelfContentRecord, 0)
 		ds := getContentSQL(m, k, dialect, cid)
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {
@@ -658,23 +654,8 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 		updateSQL.writeQuery(sqlStr)
 
 		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
-			collections = getCollectionsValue(field.CollectionColumn, m.Meta)
-		}
-		if len(collections) > 0 {
-			for _, shelf := range collections {
-				collectionRecords = append(
-					collectionRecords,
-					ShelfContentRecord{
-						ShelfName:    shelf,
-						ContentId:    cid,
-						DateModified: time.Now().UTC().Format(time.RFC3339),
-						IsDeleted:    "false",
-						IsSynced:     "false",
-					},
-				)
-			}
-
-			colSqlStr, _, err := dialect.Insert("ShelfContent").Rows(collectionRecords).OnConflict(goqu.DoNothing()).ToSQL()
+			insertCollectionSQL := getInsertCollectionSQL(field, m, cid, dialect)
+			colSqlStr, _, err := insertCollectionSQL.ToSQL()
 			if err != nil {
 				return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
 			} else {
@@ -722,6 +703,29 @@ WHERE content.Series = c.Series;`)
 	// updateSQL.writeQuery(cleanColSqlStr)
 
 	return true, nil
+}
+
+func getInsertCollectionSQL(field KuLibOptions, m BookMeta, cid string, dialect goqu.DialectWrapper) *goqu.InsertDataset {
+	collections := getCollectionsValue(field.CollectionColumn, m.Meta)
+	collectionRecords := make([]ShelfContentRecord, 0)
+
+	if len(collections) > 0 {
+		for _, shelf := range collections {
+			collectionRecords = append(
+				collectionRecords,
+				ShelfContentRecord{
+					ShelfName:    shelf,
+					ContentId:    cid,
+					DateModified: time.Now().UTC().Format(time.RFC3339),
+					IsDeleted:    "false",
+					IsSynced:     "false",
+				},
+			)
+		}
+	}
+
+	insertCollectionSQL := dialect.Insert("ShelfContent").Rows(collectionRecords).OnConflict(goqu.DoNothing())
+	return insertCollectionSQL
 }
 
 func getContentSQL(m BookMeta, k *Kobo, dialect goqu.DialectWrapper, cid string) *goqu.UpdateDataset {
